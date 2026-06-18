@@ -1,5 +1,4 @@
 import { useState } from "react";
-import * as mammoth from "mammoth";
 
 const FORMATS = [
   { id: "expert", label: "Экспертный", hint: "польза + кейс с цифрами + CTA" },
@@ -261,6 +260,7 @@ export default function StyleBot() {
         setMaterials((m) => [...m, { id: newId, name, text: "", type: "docx", status: "processing" }]);
         try {
           const buf = await f.arrayBuffer();
+          const mammoth = await import("mammoth");
           const out = await mammoth.extractRawText({ arrayBuffer: buf });
           setMaterials((m) => m.map((x) => (x.id === newId ? { ...x, text: out.value.trim(), status: "ready" } : x)));
         } catch {
