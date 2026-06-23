@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Диагностика MAX WebView</title>
+<style>
+  body { font-family: -apple-system, Roboto, Arial, sans-serif; margin: 0; padding: 16px; background: #fff; color: #111; font-size: 15px; line-height: 1.5; }
+  h1 { font-size: 18px; margin: 0 0 8px; }
+  .ok { color: #0a7d28; }
+  .bad { color: #c01818; }
+  .box { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin: 10px 0; word-break: break-word; }
+  .lbl { color: #777; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  button { font-size: 15px; padding: 10px 16px; border: 1px solid #888; border-radius: 8px; background: #f3f3f3; margin-top: 8px; }
+  pre { white-space: pre-wrap; margin: 4px 0 0; font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>Если ты это видишь — статическая страница грузится ✅</h1>
+  <p>Эта страница без Next.js, без React, без Tailwind. Чистый HTML. Ниже — авто-диагностика.</p>
+  <div class="box">
+    <div class="lbl">User-Agent (что за WebView)</div>
+    <pre id="ua">—</pre>
+  </div>
+  <div class="box">
+    <div class="lbl">Поддержка современного JS</div>
+    <pre id="features">проверяю…</pre>
+  </div>
+  <div class="box">
+    <div class="lbl">Связь с приложением</div>
+    <pre id="net">нажми кнопку ниже</pre>
+    <button id="testbtn">Проверить загрузку приложения</button>
+  </div>
+  <div class="box">
+    <div class="lbl">Пойманные ошибки</div>
+    <pre id="errors">пока нет</pre>
+  </div>
+  <script>
+    var errBox = document.getElementById("errors");
+    var errList = [];
+    window.onerror = function (msg, src, line, col) {
+      errList.push(msg + "  (строка " + line + ":" + col + ")");
+      errBox.innerHTML = errList.join("\n");
+      errBox.className = "bad";
+      return false;
+    };
+    try {
+      document.getElementById("ua").textContent = navigator.userAgent;
+    } catch (e) {
+      document.getElementById("ua").textContent = "не удалось прочитать UA";
+    }
+    var results = [];
+    function check(name, fn) {
+      try {
+        fn();
+        results.push("OK  — " + name);
+      } catch (e) {
+        results.push("ПАДАЕТ — " + name + ": " + e.message);
+      }
+    }
+    check("Promise", function () { if (typeof Promise === "undefined") throw new Error("нет Promise"); });
+    check("fetch", function () { if (typeof fetch === "undefined") throw new Error("нет fetch"); });
+    check("localStorage (частая причина падений в WebView)", function () {
+      localStorage.setItem("t", "1"); localStorage.removeItem("t");
+    });
+    check("optional chaining a?.b", function () { eval("var o={}; var x = o?.a;"); });
+    check("nullish ??", function () { eval("var x = null ?? 5;"); });
+    check("стрелочные функции", function () { eval("var f = () => 1; f();"); });
+    check("async/await", function () { eval("async function f(){ await 1; } f();"); });
+    check("шаблонные строки", function () { eval("var s = `abc`;"); });
+    var featBox = document.getElementById("features");
+    featBox.textContent = results.join("\n");
+    var anyBad = false;
+    for (var i = 0; i < results.length; i++) { if (results[i].indexOf("ПАДАЕТ") === 0) anyBad = true; }
+    featBox.className = anyBad ? "bad" : "ok";
+    document.getElementById("testbtn").onclick = function () {
+      var netBox = document.getElementById("net");
+      netBox.textContent = "запрашиваю /…";
+      try {
+        fetch("/", { method: "GET" })
+          .then(function (r) { netBox.textContent = "Главная страница ответила: HTTP " + r.status; netBox.className = r.ok ? "ok" : "bad"; })
+          .catch(function (e) { netBox.textContent = "Запрос не прошёл: " + e.message; netBox.className = "bad"; });
+      } catch (e) {
+        netBox.textContent = "fetch недоступен: " + e.message;
+        netBox.className = "bad";
+      }
+    };
+  </script>
+</body>
+</html>
